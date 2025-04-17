@@ -19,26 +19,29 @@ tags:
 #### **MPNN 框架下的 GCN**
 ##### **(1) 消息函数（Message Function）**
 - **定义**：  
-  对邻居节点 $u$ 的特征进行归一化线性变换：
-  $$
-  M_t(h_v, h_u, e_{uv}) = \frac{1}{\sqrt{|N(v)| |N(u)|}} h_u^{(t-1)} W^{(t)}
+对邻居节点 $u$ 的特征进行归一化线性变换：
 $$
-  - $W^{(t)}$：可学习的权重矩阵。  
-  - $\frac{1}{\sqrt{|N(v)| |N(u)|}}$：基于节点度的归一化（GCN 的对称归一化技巧）。
+M_t(h_v, h_u, e_{uv}) = \frac{1}{\sqrt{|N(v)| |N(u)|}} h_u^{(t-1)} W^{(t)}
+$$
+
+$W^{(t)}$：可学习的权重矩阵。  
+$\frac{1}{\sqrt{|N(v)| |N(u)|}}$：基于节点度的归一化（GCN 的对称归一化技巧）。
 
 ##### **(2) 聚合函数（Aggregation）**
 - **操作**：对邻居消息求和（含自环）：
-  $$
-  m_v^{(t)} = \sum_{u \in N(v) \cup \{v\}} M_t(h_v, h_u, e_{uv})
 $$
+m_v^{(t)} = \sum_{u \in N(v) \cup \{v\}} M_t(h_v, h_u, e_{uv})
+$$
+
   - 自环（节点自身）也被包含在聚合中。
 
 ##### **(3) 更新函数（Update Function）**
 - **定义**：对聚合结果应用非线性激活（如 ReLU）：
-  $$
-  h_v^{(t)} = \sigma(m_v^{(t)})
 $$
-  - $\sigma$：激活函数，通常为 ReLU。
+h_v^{(t)} = \sigma(m_v^{(t)})
+$$
+
+$\sigma$：激活函数，通常为 ReLU。
 
 
 ### 2. **GG-NN（Gated Graph Neural Networks）**
@@ -48,22 +51,25 @@ $$
 #### **MPNN 框架下的 GG-NN**
 ##### **(1) 消息函数（Message Function）**
 - **定义**：对邻居节点的状态进行线性变换（边类型相关）：
-  $$
-  M_t(h_v, h_u, e_{uv}) = A_{e_{uv}} h_u^{(t-1)}
 $$
-  - $A_{e_{uv}}$：与边类型 $e_{uv}$ 相关的可学习矩阵（不同边类型有不同的权重）。
+M_t(h_v, h_u, e_{uv}) = A_{e_{uv}} h_u^{(t-1)}
+$$
+
+$A_{e_{uv}}$：与边类型 $e_{uv}$ 相关的可学习矩阵（不同边类型有不同的权重）。
 
 ##### **(2) 聚合函数（Aggregation）**
 - **操作**：直接求和所有邻居消息：
-  $$
-  m_v^{(t)} = \sum_{u \in N(v)} M_t(h_v, h_u, e_{uv})
+$$
+m_v^{(t)} = \sum_{u \in N(v)} M_t(h_v, h_u, e_{uv})
 $$
 
 ##### **(3) 更新函数（Update Function）**
 - **定义**：使用 GRU 结合历史状态和当前消息：
-  $$
+$$
   h_v^{(t)} = \text{GRU}(h_v^{(t-1)}, m_v^{(t)})
 $$
+
+
   - GRU 的输入：上一时刻的节点状态 $h_v^{(t-1)}$ 和聚合消息 $m_v^{(t)}$。
 
 
@@ -80,17 +86,19 @@ z &= \sigma(W_z \cdot [h^{(t-1)}, x^{(t)}]) & \text{(更新门)} \\
 r &= \sigma(W_r \cdot [h^{(t-1)}, x^{(t)}]) & \text{(重置门)}
 \end{aligned}
 $$
-- $\sigma$：Sigmoid 函数，输出值在 [0,1] 之间，表示门的开放程度。
+
+$\sigma$：Sigmoid 函数，输出值在 [0,1] 之间，表示门的开放程度。
 
 $$
 \tilde{h}^{(t)} = \tanh(W \cdot [r \odot h^{(t-1)}, x^{(t)}])
 $$
-- $\odot$：逐元素乘法，重置门 $r$ 控制历史状态的“遗忘”程度。
+ $\odot$：逐元素乘法，重置门 $r$ 控制历史状态的“遗忘”程度。
 
 $$
 h^{(t)} = (1 - z) \odot h^{(t-1)} + z \odot \tilde{h}^{(t)}
 $$
-- 更新门 $z$ 平衡旧状态和新候选状态的比例。
+
+更新门 $z$ 平衡旧状态和新候选状态的比例。
 
 ### 更复杂的架构：GAT
 GAT（Graph Attention Network）由 Velickovic 等人于 2018 年提出（*Graph Attention Networks*, ICLR 2018），其核心创新是**用注意力权重动态计算邻居节点的重要性**，而非像 GCN 那样依赖固定的归一化权重。
@@ -100,17 +108,23 @@ GAT（Graph Attention Network）由 Velickovic 等人于 2018 年提出（*Graph
 $$
 M_t(h_v, h_u, e_{uv}) = \alpha_{vu}^{(t)} \cdot h_u^{(t-1)} W^{(t)}
 $$
-- $W^{(t)}$：可学习的线性变换矩阵（与 GCN 类似）。  
-- $\alpha_{vu}^{(t)}$：**注意力权重**，表示节点 $u$ 对节点 $v$ 的重要性，计算方式为：
-  $$
-  \alpha_{vu}^{(t)} = \text{softmax}_u \left( \text{LeakyReLU} \left( a^T [W^{(t)} h_v^{(t-1)} \| W^{(t)} h_u^{(t-1)}] \right) \right)
+
+$W^{(t)}$：可学习的线性变换矩阵（与 GCN 类似）。  
+$\alpha_{vu}^{(t)}$：**注意力权重**，表示节点 $u$ 对节点 $v$ 的重要性，计算方式为：
+
 $$
-  - $a$：可学习的注意力向量。  
-  - $\|$：向量拼接操作。  
-  - **softmax_u**：对节点 $v$ 的所有邻居 $u$ 归一化，使得 $\sum_{u \in N(v)} \alpha_{vu}^{(t)} = 1$。
+\alpha_{vu}^{(t)} = \text{softmax}_u \left( \text{LeakyReLU} \left( a^T [W^{(t)} h_v^{(t-1)} \| W^{(t)} h_u^{(t-1)}] \right) \right)
+$$
+
+$a$：可学习的注意力向量。  
+$\|$：向量拼接操作。  
+ **softmax_u**：
+ 对节点 $v$ 的所有邻居 $u$ 归一化，使得 
+ $\sum_{u \in N(v)} \alpha_{vu}^{(t)} = 1$。
 
 ##### **(2) 聚合函数（Aggregation）**
 GAT 的聚合是对加权消息求和：
+
 $$
 m_v^{(t)} = \sum_{u \in N(v)} \alpha_{vu}^{(t)} \cdot W^{(t)} h_u^{(t-1)}
 $$
@@ -121,7 +135,8 @@ GAT 的更新函数通常是一个简单的非线性变换（类似 GCN）：
 $$
 h_v^{(t)} = \sigma \left( m_v^{(t)} \right)
 $$
-- $\sigma$：如 ELU 或 LeakyReLU。
+
+ $\sigma$：如 ELU 或 LeakyReLU。
 ## Language Model, Attention, Transfosrmers and AlphaFold
 我本来是准备自己讲的，但我自己试了下，感觉自己怎么也讲不明白。在看了 3b1b 的视频之后，我觉得我一切的努力都是对 3b1b 的拙劣模仿，因此我选择开摆，这节课的前半部分，我们一起来看下 3b1b 讲解 语言模型，注意力机制和 Transformer 的神级视频。
 
@@ -164,7 +179,7 @@ ref: [Foundation models in bioinformatics | National Science Review | Oxford Aca
 - CLIP（视觉+语言）
 
 ### Bioinfo FMs
-![[content/030 Tutorials/Language Model, Attention, Transfosrmers and AlphaFold/Pasted image 20250415154025.png]]
+![[quartz/content/030 Tutorials/Language Model, Attention, Transfosrmers and Bioinfo FMs/Pasted image 20250415154025.png]]
 生物信息学中的基础模型的输入可以认为有下面几种：
 - DNA序列
 - RNA序列
@@ -173,7 +188,7 @@ ref: [Foundation models in bioinformatics | National Science Review | Oxford Aca
 - 单细胞组学数据，如转录组等。
 其也可以被归类到语言、视觉、图和多模态 FM 中。比如，序列可以用类似语言的方式标识，结构可以被用图表示，单细胞组学数据。而多模态包括对于多种组学数据的整合与应用。
 
-![[content/030 Tutorials/Language Model, Attention, Transfosrmers and AlphaFold/Pasted image 20250415154545.png]]
+![[quartz/content/030 Tutorials/Language Model, Attention, Transfosrmers and Bioinfo FMs/Pasted image 20250415154545.png]]
 
 ### 蛋白质语言模型
 最经典的工作自然是得了诺贝尔奖的 AlphaFold。其属于蛋白组学相关的基础模型。其训练的时候使用了大量的蛋白质结构数据，输入蛋白序列，最终输出蛋白质的结构。但其主要功能是输出蛋白质结构， 对于蛋白质表征的能力没有那么厉害。而 ESM2 模型是专门用来做蛋白质表征的蛋白质语言模型。其通过类似于 Bert 的训练方式，就是，比如我们拿到一个蛋白质序列，给它遮住一部分，让 AI 去恢复这部分信息来进行预训练，捕捉语义信息。当然，它预训练的task应该挺多的，总之通过多种预训练，ESM2 能够学习到蛋白质的一个很厉害的表征，可能包含其理化性质、功能等等。
@@ -335,7 +350,7 @@ ProteinMPNN 结构 -> 序列
 除了 scRNA-seq 技术，近年来单细胞多组学技术也正在迅猛发展。除了转录组数据，有些技术已经能够同时支持代谢组学等数据的加入。多组学集成能够让我们获得更全面的信息，用于进行下游任务。
 
 近几年，随着单细胞组学技术的发展，空间组学甚至时空组学技术也正在发展。这些单细胞基础模型也可以用于揭示单细胞的空间定位。
-![[content/030 Tutorials/Language Model, Attention, Transfosrmers and AlphaFold/Pasted image 20250415170628.png]]
+![[quartz/content/030 Tutorials/Language Model, Attention, Transfosrmers and Bioinfo FMs/Pasted image 20250415170628.png]]
 
 |Model|Architecture|Description|
 |---|---|---|
