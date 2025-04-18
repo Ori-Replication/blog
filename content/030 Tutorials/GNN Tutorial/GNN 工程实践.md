@@ -331,6 +331,141 @@ num_nodes 就是本批次的node。
 如果不使用这种策略，我们还是每个batch输入多对节点对，即使有重复的也没办法，我们只能进行一些重复的计算，来节约显存。
 
 
+## 对上节课的补充：MPNN 结构
+在 MPNN 这篇工作之前整个图神经网络的研究缺少一个统一的范式和框架。MPNN 作为一个框架，很好地将整个 GNN 领域做了一个标准化。它通过三个函数描述几乎所有静态图神经网络的流程：
+- 消息生成（Message Function）
+- 消息聚合（Aggregation）
+- 状态更新（Update Function）
+下面，我们用两个图神经网络的例子，来描述 MPNN 下的图神经网络结构。
+
+
+
+### 1. **GCN（Graph Convolutional Networks）**
+**论文**：Kipf & Welling, 2016 (*Semi-Supervised Classification with Graph Convolutional Networks*, ICLR)  
+**核心思想**：将传统卷积推广到图结构数据，通过邻域节点的加权聚合更新节点表示。
+
+#### **MPNN 框架下的 GCN**
+##### **(1) 消息函数（Message Function）**
+- **定义**：  
+对邻居节点 $u$ 的特征进行归一化线性变换：
+$$
+M_t(h_v, h_u, e_{uv}) = \frac{1}{\sqrt{|N(v)| |N(u)|}} h_u^{(t-1)} W^{(t)}
+$$
+
+$W^{(t)}$：可学习的权重矩阵。  
+$\frac{1}{\sqrt{|N(v)| |N(u)|}}$：基于节点度的归一化（GCN 的对称归一化技巧）。
+
+##### **(2) 聚合函数（Aggregation）**
+- **操作**：对邻居消息求和（含自环）：
+$$
+m_v^{(t)} = \sum_{u \in N(v) \cup \{v\}} M_t(h_v, h_u, e_{uv})
+$$
+
+  - 自环（节点自身）也被包含在聚合中。
+
+##### **(3) 更新函数（Update Function）**
+- **定义**：对聚合结果应用非线性激活（如 ReLU）：
+$$
+h_v^{(t)} = \sigma(m_v^{(t)})
+$$
+
+$\sigma$：激活函数，通常为 ReLU。
+
+
+### 2. **GG-NN（Gated Graph Neural Networks）**
+**论文**：Li et al., 2015 (*Gated Graph Sequence Neural Networks*, arXiv)  
+**核心思想**：引入门控机制（GRU）控制信息传播，适用于序列化的图任务（如程序分析）。
+
+#### **MPNN 框架下的 GG-NN**
+##### **(1) 消息函数（Message Function）**
+- **定义**：对邻居节点的状态进行线性变换（边类型相关）：
+$$
+M_t(h_v, h_u, e_{uv}) = A_{e_{uv}} h_u^{(t-1)}
+$$
+
+$A_{e_{uv}}$：与边类型 $e_{uv}$ 相关的可学习矩阵（不同边类型有不同的权重）。
+
+##### **(2) 聚合函数（Aggregation）**
+- **操作**：直接求和所有邻居消息：
+$$
+m_v^{(t)} = \sum_{u \in N(v)} M_t(h_v, h_u, e_{uv})
+$$
+
+##### **(3) 更新函数（Update Function）**
+- **定义**：使用 GRU 结合历史状态和当前消息：
+$$
+  h_v^{(t)} = \text{GRU}(h_v^{(t-1)}, m_v^{(t)})
+$$
+
+
+  - GRU 的输入：上一时刻的节点状态 $h_v^{(t-1)}$ 和聚合消息 $m_v^{(t)}$。
+
+
+##### 3. **GRU（Gated Recurrent Unit）详解**
+GRU 是循环神经网络（RNN）的一种变体，由 Cho 等人于 2014 年提出，用于解决传统 RNN 的梯度消失问题。
+
+### **GRU 的核心结构**
+GRU 通过两个门控机制（重置门 $r$ 和更新门 $z$）控制信息流：
+
+
+$$
+\begin{aligned}
+z &= \sigma(W_z \cdot [h^{(t-1)}, x^{(t)}]) & \text{(更新门)} \\
+r &= \sigma(W_r \cdot [h^{(t-1)}, x^{(t)}]) & \text{(重置门)}
+\end{aligned}
+$$
+
+$\sigma$：Sigmoid 函数，输出值在 [0,1] 之间，表示门的开放程度。
+
+$$
+\tilde{h}^{(t)} = \tanh(W \cdot [r \odot h^{(t-1)}, x^{(t)}])
+$$
+ $\odot$：逐元素乘法，重置门 $r$ 控制历史状态的“遗忘”程度。
+
+$$
+h^{(t)} = (1 - z) \odot h^{(t-1)} + z \odot \tilde{h}^{(t)}
+$$
+
+更新门 $z$ 平衡旧状态和新候选状态的比例。
+
+### 更复杂的架构：GAT
+GAT（Graph Attention Network）由 Velickovic 等人于 2018 年提出（*Graph Attention Networks*, ICLR 2018），其核心创新是**用注意力权重动态计算邻居节点的重要性**，而非像 GCN 那样依赖固定的归一化权重。
+
+##### **(1) 消息函数（Message Function）**
+在 GAT 中，消息函数不仅考虑邻居节点的特征，还通过注意力机制学习权重：
+$$
+M_t(h_v, h_u, e_{uv}) = \alpha_{vu}^{(t)} \cdot h_u^{(t-1)} W^{(t)}
+$$
+
+$W^{(t)}$：可学习的线性变换矩阵（与 GCN 类似）。  
+$\alpha_{vu}^{(t)}$：**注意力权重**，表示节点 $u$ 对节点 $v$ 的重要性，计算方式为：
+
+$$
+\alpha_{vu}^{(t)} = \text{softmax}_u \left( \text{LeakyReLU} \left( a^T [W^{(t)} h_v^{(t-1)} \| W^{(t)} h_u^{(t-1)}] \right) \right)
+$$
+
+$a$：可学习的注意力向量。  
+$\|$：向量拼接操作。  
+ **softmax_u**：
+ 对节点 $v$ 的所有邻居 $u$ 归一化，使得 
+ $\sum_{u \in N(v)} \alpha_{vu}^{(t)} = 1$。
+
+##### **(2) 聚合函数（Aggregation）**
+GAT 的聚合是对加权消息求和：
+
+$$
+m_v^{(t)} = \sum_{u \in N(v)} \alpha_{vu}^{(t)} \cdot W^{(t)} h_u^{(t-1)}
+$$
+
+
+### **(3) 更新函数（Update Function）**
+GAT 的更新函数通常是一个简单的非线性变换（类似 GCN）：
+$$
+h_v^{(t)} = \sigma \left( m_v^{(t)} \right)
+$$
+
+ $\sigma$：如 ELU 或 LeakyReLU。
+
 ## 总结
 图神经网络的构建是高度可定制化的。我们无法遍历所有的组合，但我认为，深度学习的一个原则就是：合理地整合一切你能够整合进去的信息，并使用合适的模型架构进行处理。比如，我们的节点如果具有各种信息，如类型，我们可以给类型一个初始嵌入；如果有其他信息，如更多基因表达等的信息，我们可以考虑，在输入GNN的时候进行融合，还是在中期，即输出 Embedding 之后进行融合等。
 
