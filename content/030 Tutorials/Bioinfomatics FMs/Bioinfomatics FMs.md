@@ -1,4 +1,8 @@
-
+---
+title: Bioinfomatics FMs
+publish: true
+tags:
+---
 ## 生物信息学基础模型
 
 今天讲讲 生物信息学中的其他的基础模型。

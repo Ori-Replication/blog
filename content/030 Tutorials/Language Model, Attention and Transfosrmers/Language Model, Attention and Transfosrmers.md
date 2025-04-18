@@ -1,5 +1,5 @@
 ---
-title: Language Model, Attention, Transfosrmers and AlphaFold
+title: Language Model, Attention and Transfosrmers
 publish: true
 tags:
 ---
